@@ -481,7 +481,7 @@ def binary_to_arr(file_path):
 def acf_from_binaryfiles(folder_path):
   
     
-    file_names = file_names = sorted(
+    file_names = sorted(
         [f for f in os.listdir(folder_path) if f.startswith('OUT') and f.endswith('.DAT')],
         key=lambda x: int(''.join(filter(str.isdigit, x)))  # Extract numbers and sort numerically
     )
@@ -507,9 +507,6 @@ def acf_from_binaryfiles(folder_path):
 
 #path = '/home/elias/proj/_photon_correlation/data_14_03_thymol'
 #acf_from_binaryfiles(path)
-
-# next up calculate the radius and so on from jaja, so adjust analyze all acf and main_r()
-
 
 path = '/home/elias/proj/_photon_correlation/out_.dat'
 test_binning(path)
