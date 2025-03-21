@@ -433,13 +433,14 @@ def main_r(path, time_step = 30e-6, model = 'kww', filter = 1e5, data_is_acf = T
     
     if not data_is_acf:
 
-        file_names = [f for f in os.listdir(path) if f.startswith('out_') and f.endswith('.dat')]
+        file_names = [f for f in os.listdir(path) if f.startswith('OUT') and f.endswith('.DAT')]
 
         if not file_names:
             print("No .dat files found in, files need to be of format: out_.dat", path)
             return 
         
         for i, f in enumerate(file_names):
+            print(f'Analysing Data:{f}')
             data_acf, data_bins = autocorrelation_fft(np.loadtxt(os.path.join(path, f), usecols=[1]), binning = 1.03)
             output_file = os.path.join(path, f"acf_bin_{i}.dat")
             np.savetxt(output_file, np.column_stack((data_bins, data_acf)), fmt="%e")
@@ -447,7 +448,7 @@ def main_r(path, time_step = 30e-6, model = 'kww', filter = 1e5, data_is_acf = T
         taus, std_devs = analyse_all_acf(path, model, error = get_error)
 
 
-
+    print('filtering and plotting...')
     # look for crazy tau values and filter
     for i, value in enumerate(taus):
         if value > filter:
@@ -508,10 +509,7 @@ def acf_from_binaryfiles(folder_path):
 #path = '/home/elias/proj/_photon_correlation/data_14_03_thymol'
 #acf_from_binaryfiles(path)
 
-path = '/home/elias/proj/_photon_correlation/out_.dat'
-test_binning(path)
 #main_acf(path, 'exp')
-#main_r(path, model = 'exp', filter = 1e10, data_is_acf = False, get_error = True)
 
 
 

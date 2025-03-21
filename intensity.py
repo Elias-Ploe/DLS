@@ -29,8 +29,6 @@ def get_all_intensities(folder_path):
         key=lambda x: int(''.join(filter(str.isdigit, x)))  # Extract numbers and sort numerically
     )
 
-    sequence_folder = os.path.join(folder_path, 'sequences')
-    os.makedirs(sequence_folder, exist_ok=True)
 
     all_intensities = []
     for f in file_names:
@@ -68,7 +66,7 @@ def analyse_intensities(folder_path):
     ax.legend()
     plt.show()
     
-path = '/home/elias/proj/_photon_correlation/data_14_03_thymol'
+path = '/home/elias/proj/_photon_correlation/data_15.03_thymol'
 analyse_intensities(path)
     
 
