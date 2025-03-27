@@ -6,7 +6,7 @@ import os
 
 def get_intensity(sequence):
 
-    intensity = np.mean(sequence)
+    intensity = np.sum(sequence)
     return intensity
 
 
@@ -66,7 +66,7 @@ def analyse_intensities(folder_path):
     ax.legend()
     plt.show()
     
-path = '/home/elias/proj/_photon_correlation/data_15.03_thymol'
+path = '/home/elias/proj/_photon_correlation/data_24_03_thymol/'
 analyse_intensities(path)
     
 

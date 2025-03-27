@@ -46,7 +46,9 @@ def acf_from_binaryfiles(folder_path):
 
 def analyse_all_acf(folder_path, model, error = True):
 
-    file_names = [f for f in os.listdir(folder_path) if f.startswith('acf_bin_') and f.endswith('.dat')]
+    file_names = sorted([f for f in os.listdir(folder_path) if f.startswith('acf_bin_') and f.endswith('.dat')],
+        key=lambda x: int(''.join(filter(str.isdigit, x)))
+        ) # this is extermely important
     data_acf = [np.loadtxt(os.path.join(folder_path, f), usecols = [1]) for f in file_names]
     data_bins = [np.loadtxt(os.path.join(folder_path, f), usecols = [0]) for f in file_names]
 
@@ -54,8 +56,9 @@ def analyse_all_acf(folder_path, model, error = True):
 
     all_tau = []
     all_std_dev = []
-    for acf, bins in zip(data_acf, data_bins):
+    for i, (acf, bins) in enumerate(zip(data_acf, data_bins)):
         try:
+            print(f'fitting: {i}')
             fit = CurveFitting(model, acf, bins).make_fit()
             parameters = fit.get_params()
 
@@ -70,7 +73,9 @@ def analyse_all_acf(folder_path, model, error = True):
                 all_tau.append(parameters[2])
             elif model == 'exp':
                 all_tau.append(parameters[1])
-        except:
+
+        except Exception as e:
+            print(f"Fit failed for {i}, reason: {e}")
             continue
 
     return np.array(all_tau), np.array(all_std_dev)
@@ -78,7 +83,7 @@ def analyse_all_acf(folder_path, model, error = True):
 
 
 
-def plot_r(r, std_dev , mean_r, error = True):
+def plot_r(r, std_dev, error = True):
     fig, ax = plt.subplots(figsize=(6, 4))  
 
     if error:
@@ -100,8 +105,8 @@ def plot_r(r, std_dev , mean_r, error = True):
         ax.plot(r, marker='o', linestyle='', markerfacecolor='none', 
                 markersize=3, color='cornflowerblue', label='r')
 
-    ax.axhline(mean_r, color='orchid', linestyle='--', linewidth=2, alpha=0.8, 
-            label=rf'$\bar{{r}} = {np.round(mean_r, 8)}$')
+    #ax.axhline(mean_r, color='orchid', linestyle='--', linewidth=2, alpha=0.8, 
+    #        label=rf'$\bar{{r}} = {np.round(mean_r, 8)}$')
 
     ax.set_xlabel('Measurement', fontsize=12)
     ax.set_ylabel('Radius', fontsize=12)
@@ -130,6 +135,8 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e5):
         print('Acf and tau calculated succesfully')
 
     taus, std_devs = analyse_all_acf(acf_folder, model)
+    tau_path = os.path.join(folder_path, 'all_tau.txt')
+    np.savetxt(tau_path, taus)
     
 
     # look for crazy tau values and filter
@@ -144,8 +151,8 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e5):
     # calculate r, std_dev, mean_r and plot all the data
     r = particle_radius(tau_masked * time_step)
     std_dev_r = radius_std(std_devs * time_step)
-    mean_r = np.mean(r)
-    plot_r(r, std_dev_r, mean_r)
+    #mean_r = np.mean(r)
+    plot_r(r, std_dev_r)
 
 
 
@@ -173,13 +180,17 @@ def walking_avg_r(acf_folder, time_step = 30e-6, model = 'kww', filter = 1e5):
     N = len(r)
     avg_bin = 10
     all_avg_r = []
-    while i < N // avg_bin:
-        avg_r = np.mean(r[i * avg_bin : (i + 1) * avg_bin])
+
+    j=0
+    while j < N // avg_bin:
+        avg_r = np.mean(r[j * avg_bin : (j + 1) * avg_bin])
         all_avg_r.append(avg_r)
-        i += 1
+        j += 1
     
     plt.plot(all_avg_r)
     plt.show()
 
-path = '/home/elias/proj/_photon_correlation/data_20_03_thymol/acf'
-walking_avg_r(path)
+
+
+path = '/home/elias/proj/_photon_correlation/data_24_03_thymol/'
+main_r(path, model='kww')

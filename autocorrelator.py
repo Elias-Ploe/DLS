@@ -220,8 +220,7 @@ class CurveFitting:
     def make_fit(self, cutoff = 10000):
 
         index = np.where(self.x_values >= cutoff)[0][0]
-
-        self.popt, self.pcov, = curve_fit(self.func, self.x_values[1:index], self.y_values[1:index], p0 = self.guess)
+        self.popt, self.pcov, = curve_fit(self.func, self.x_values[:index], self.y_values[:index], p0 = self.guess)
         
         x_linear = np.arange(int(max(self.x_values)))
         self.fitted_func = self.func(x_linear, *self.popt)
@@ -509,7 +508,8 @@ def acf_from_binaryfiles(folder_path):
 #path = '/home/elias/proj/_photon_correlation/data_14_03_thymol'
 #acf_from_binaryfiles(path)
 
-#main_acf(path, 'exp')
+path = '/home/elias/proj/_photon_correlation/data_24_03_thymol/acf/acf_bin_158.dat'
+main_acf(path, 'kww', isacf = True)
 
 
 
