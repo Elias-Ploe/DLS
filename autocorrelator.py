@@ -327,145 +327,6 @@ def plot_distribution(gamma_bar, k2, time_step = 30e-6):
 
 
 
-def main_acf(file_path, model, distr = False, isacf = False):
-
-    if not isacf:
-        sequence = np.loadtxt(file_path, usecols=[1])
-        acf_values, bins = autocorrelation_fft(sequence, binning = 1.03)
-    elif isacf:
-        acf_values = np.loadtxt(file_path, usecols = [1])
-        bins = np.loadtxt(file_path, usecols = [0])
-    fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
-    fit = fitter_bin.get_curve()
-    parameters = fitter_bin.get_params()
-    std_dev = fitter_bin.get_std_error()
-
-    plt = PlotManager(acf_values, fit, parameters, std_dev, bins)
-    plt.set_up()
-    plt.plot_acf()
-    plt.plot_fit('violet')
-    plt.plot_info()
-    plt.show_and_save()
-
-    if model == 'frisken' and distr is True:
-        plot_distribution(parameters[2], parameters[3])
-
-
-
-
-def analyse_all_acf(folder_path, model, error = True):
-
-    file_names = [f for f in os.listdir(folder_path) if f.startswith('acf_bin_') and f.endswith('.dat')]
-    data_acf = [np.loadtxt(os.path.join(folder_path, f), usecols = [1]) for f in file_names]
-    data_bins = [np.loadtxt(os.path.join(folder_path, f), usecols = [0]) for f in file_names]
-
-
-
-    all_tau = []
-    all_std_dev = []
-    for acf, bins in zip(data_acf, data_bins):
-        try:
-            fit = CurveFitting(model, acf, bins).make_fit()
-            parameters = fit.get_params()
-
-            if error is True:
-                std_dev = fit.get_std_error()
-                all_std_dev.append(std_dev)
-
-
-            if model == 'frisken':
-                all_tau.append(1/parameters[2])
-            elif model == 'kww':
-                all_tau.append(parameters[2])
-            elif model == 'exp':
-                all_tau.append(parameters[1])
-        except:
-            continue
-
-    return np.array(all_tau), np.array(all_std_dev)
-
-
-
-
-def plot_r(r, std_dev , mean_r, error = False):
-    fig, ax = plt.subplots(figsize=(6, 4))  
-
-    if error:
-        ax.errorbar(
-            x=np.arange(len(r)),  
-            y=r,                  
-            yerr=std_dev,           # array of errors
-            fmt='o',              
-            markersize=3,
-            markerfacecolor='none',
-            color='cornflowerblue',
-            ecolor='lightskyblue',  
-            elinewidth=0.5,
-            capsize=1.5,               # length of the error bar caps
-            label='r'
-        )
-
-    elif not error:
-        ax.plot(r, marker='o', linestyle='', markerfacecolor='none', 
-                markersize=3, color='cornflowerblue', label='r')
-
-    ax.axhline(mean_r, color='orchid', linestyle='--', linewidth=2, alpha=0.8, 
-            label=rf'$\bar{{r}} = {np.round(mean_r, 8)}$')
-
-    ax.set_xlabel('Measurement', fontsize=12)
-    ax.set_ylabel('Radius', fontsize=12)
-    ax.grid(True, linestyle=':', linewidth=0.7, alpha=0.6)
-    ax.legend(loc='upper right', fontsize=11, frameon=True)
-
-    plt.savefig('/home/elias/proj/_photon_correlation/all_r.png', dpi=300, bbox_inches='tight')
-    plt.show()
-
-
-
-
-
-def main_r(path, time_step = 30e-6, model = 'kww', filter = 1e5, data_is_acf = True, get_error = False):
-
-    # calculate acf and determine tau for all datasets
-    if data_is_acf:
-        taus, std_devs = analyse_all_acf(path, model)
-    
-    if not data_is_acf:
-
-        file_names = [f for f in os.listdir(path) if f.startswith('OUT') and f.endswith('.DAT')]
-
-        if not file_names:
-            print("No .dat files found in, files need to be of format: out_.dat", path)
-            return 
-        
-        for i, f in enumerate(file_names):
-            print(f'Analysing Data:{f}')
-            data_acf, data_bins = autocorrelation_fft(np.loadtxt(os.path.join(path, f), usecols=[1]), binning = 1.03)
-            output_file = os.path.join(path, f"acf_bin_{i}.dat")
-            np.savetxt(output_file, np.column_stack((data_bins, data_acf)), fmt="%e")
-
-        taus, std_devs = analyse_all_acf(path, model, error = get_error)
-
-
-    print('filtering and plotting...')
-    # look for crazy tau values and filter
-    for i, value in enumerate(taus):
-        if value > filter:
-            print("oh god... tau = ", value, 'Data = ', i+1)
-
-    mask = (taus >= 0) & (taus < filter) 
-    tau_masked = taus[mask]
-    
-  
-    std_devs = std_devs[mask]
-    r = particle_radius(tau_masked * time_step)
-    std_dev_r = radius_std(std_devs * time_step)
-    mean_r = np.mean(r)
-    plot_r(r, std_dev_r, mean_r, error = get_error)
-
-
-
-
 def binary_to_arr(file_path):
 
     with open(file_path, "rb") as file:
@@ -474,7 +335,6 @@ def binary_to_arr(file_path):
     photon_counts = np.frombuffer(binary_data[9:], dtype=np.uint8) # remove timestamp or whatever is at the beginning (first 9 values)
     
     return photon_counts
-
 
 
 
@@ -503,20 +363,30 @@ def acf_from_binaryfiles(folder_path):
 
         stacked = np.column_stack((bins, acf_binned))
         np.savetxt(save_path, stacked, fmt='%e')
-            
-
-#path = '/home/elias/proj/_photon_correlation/data_14_03_thymol'
-#acf_from_binaryfiles(path)
-
-path = '/home/elias/proj/_photon_correlation/data_24_03_thymol/acf/acf_bin_158.dat'
-main_acf(path, 'kww', isacf = True)
 
 
 
+def main_acf(file_path, model, distr = False):
 
-# note bei bekannter autocorrtime kann man datensätze fenstern / splitten
+    acf_values = np.loadtxt(file_path, usecols = [1])
+    bins = np.loadtxt(file_path, usecols = [0])
 
-# überlege ob vor fit nur plot für besserer guess
+    fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
+    fit = fitter_bin.get_curve()
+    parameters = fitter_bin.get_params()
+    std_dev = fitter_bin.get_std_error()
+
+    plt = PlotManager(acf_values, fit, parameters, std_dev, bins)
+    plt.set_up()
+    plt.plot_acf()
+    plt.plot_fit('violet')
+    plt.plot_info()
+    plt.show_and_save()
+
+    if model == 'frisken' and distr is True:
+        plot_distribution(parameters[2], parameters[3])
+
+
 
 
 

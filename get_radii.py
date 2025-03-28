@@ -1,7 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from autocorrelator import PlotManager, CurveFitting, autocorrelation_fft, particle_radius, radius_std
+from autocorrelator import PlotManager, CurveFitting, autocorrelation_fft
+import viscocity as vscy
+
+
+
+config = {
+    'folder_path': '/home/elias/proj/_photon_correlation/data_15_03_thymol/',
+    'real_time': 30e-6,
+    'channels': 5000000,
+    'model': 'kww',
+    'T': 293,
+    'date': 15.3,
+    'filter': 1e3
+}
+
+
+
+
 
 
 def binary_to_arr(file_path):
@@ -17,7 +34,6 @@ def binary_to_arr(file_path):
 
 
 def acf_from_binaryfiles(folder_path):
-  
     
     file_names = sorted(
         [f for f in os.listdir(folder_path) if f.startswith('OUT') and f.endswith('.DAT')],
@@ -44,15 +60,14 @@ def acf_from_binaryfiles(folder_path):
 
 
 
-def analyse_all_acf(folder_path, model, error = True):
+
+def fit_all_acf(folder_path, model, error = True):
 
     file_names = sorted([f for f in os.listdir(folder_path) if f.startswith('acf_bin_') and f.endswith('.dat')],
         key=lambda x: int(''.join(filter(str.isdigit, x)))
         ) # this is extermely important
     data_acf = [np.loadtxt(os.path.join(folder_path, f), usecols = [1]) for f in file_names]
     data_bins = [np.loadtxt(os.path.join(folder_path, f), usecols = [0]) for f in file_names]
-
-
 
     all_tau = []
     all_std_dev = []
@@ -83,38 +98,73 @@ def analyse_all_acf(folder_path, model, error = True):
 
 
 
-def plot_r(r, std_dev, error = True):
+def particle_radius(tau, viscocity = 0.932e-3, scattering_angle = (np.pi/2), wavelenght = 528e-9, refr_index = 1.333, T = 23 + 273.15):
+
+    k_B = 1.380649e-23 
+    q = ((4 * np.pi * refr_index / wavelenght)) * np.sin(scattering_angle/2)
+    R = (q**2 * tau * k_B * T) / (6* np.pi * viscocity)
+    return R
+
+
+
+
+def radius_std(tau_std, viscocity=0.932e-3, scattering_angle=np.pi/2,
+               wavelength=528e-9, refr_index=1.333, T=296.15):
+    
+    k_B = 1.380649e-23
+    q   = (4 * np.pi * refr_index / wavelength) * np.sin(scattering_angle/2)
+    # Derivative of R/tau:
+    K   = (q**2 * k_B * T) / (6 * np.pi * viscocity)
+    return 2* K * tau_std # 2 sigma
+
+
+
+
+def get_real_time_axis(time_step, channels, measurements):
+
+    real_time = channels * time_step
+
+    time_axis = []
+    for i in range(len(measurements)):
+        time_axis.append(real_time*(i+1))
+
+    return np.array(time_axis) / 3600 #convert to hours
+
+
+
+
+def plot_r(r, std_dev):
+    r = r*1e6      
+    std_dev = std_dev*1e6
     fig, ax = plt.subplots(figsize=(6, 4))  
+    x_vals = get_real_time_axis(config['real_time'], config['channels'], r)
 
-    if error:
-        ax.errorbar(
-            x=np.arange(len(r)),  
-            y=r,                  
-            yerr=std_dev,           # array of errors
-            fmt='o',              
-            markersize=3,
-            markerfacecolor='none',
-            color='cornflowerblue',
-            ecolor='lightskyblue',  
-            elinewidth=0.5,
-            capsize=1.5,               # length of the error bar caps
-            label='r'
-        )
+    
+    ax.errorbar(
+        x=x_vals, y=r, yerr=std_dev,
+        fmt='none', ecolor='cornflowerblue', elinewidth=0.7, capsize=1, alpha=0.5, label=rf'$2\sigma$'
+    )
 
-    elif not error:
-        ax.plot(r, marker='o', linestyle='', markerfacecolor='none', 
-                markersize=3, color='cornflowerblue', label='r')
+    ax.plot(
+        x_vals, r, 
+        '.', markersize=3, color='cornflowerblue', label='r'  # Label for markers
+    )   
+
 
     #ax.axhline(mean_r, color='orchid', linestyle='--', linewidth=2, alpha=0.8, 
     #        label=rf'$\bar{{r}} = {np.round(mean_r, 8)}$')
 
-    ax.set_xlabel('Measurement', fontsize=12)
-    ax.set_ylabel('Radius', fontsize=12)
+    ax.set_xlabel('t [h]', fontsize=12)
+    ax.set_ylabel(r'r [$\mathrm{\mu m}$]', fontsize=12)
     ax.grid(True, linestyle=':', linewidth=0.7, alpha=0.6)
     ax.legend(loc='upper right', fontsize=11, frameon=True)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
-    plt.savefig('/home/elias/proj/_photon_correlation/all_r.png', dpi=300, bbox_inches='tight')
+    save_path = os.path.join(config['folder_path'], 'all_radii.png')
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
+
 
 
 
@@ -134,9 +184,17 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e5):
         acf_from_binaryfiles(folder_path)
         print('Acf and tau calculated succesfully')
 
-    taus, std_devs = analyse_all_acf(acf_folder, model)
     tau_path = os.path.join(folder_path, 'all_tau.txt')
-    np.savetxt(tau_path, taus)
+
+    if not os.path.isfile(tau_path):
+        taus, std_devs = fit_all_acf(acf_folder, model)
+        data = np.column_stack((taus, std_devs))
+        np.savetxt(tau_path, data)
+
+    if os.path.isfile(tau_path):
+        print('using existing values')
+        taus = np.loadtxt(tau_path, usecols=0)
+        std_devs = np.loadtxt(tau_path, usecols=1)
     
 
     # look for crazy tau values and filter
@@ -149,8 +207,12 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e5):
     std_devs = std_devs[mask]
 
     # calculate r, std_dev, mean_r and plot all the data
-    r = particle_radius(tau_masked * time_step)
-    std_dev_r = radius_std(std_devs * time_step)
+    visc = vscy.get_viscocity(config['T'], config['date'])
+
+    r = particle_radius(tau_masked * time_step, viscocity=visc)
+    std_dev_r = radius_std(std_devs * time_step, viscocity=visc)
+
+
     #mean_r = np.mean(r)
     plot_r(r, std_dev_r)
 
@@ -160,12 +222,9 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e5):
 
 
 
-
-
-
 # fix this :/
 def walking_avg_r(acf_folder, time_step = 30e-6, model = 'kww', filter = 1e5):
-    taus, std_devs = analyse_all_acf(acf_folder, model)
+    taus, std_devs = fit_all_acf(acf_folder, model)
 
     for i, value in enumerate(taus):
         if value > filter:
@@ -192,5 +251,7 @@ def walking_avg_r(acf_folder, time_step = 30e-6, model = 'kww', filter = 1e5):
 
 
 
-path = '/home/elias/proj/_photon_correlation/data_24_03_thymol/'
-main_r(path, model='kww')
+
+
+
+main_r(config['folder_path'], config['real_time'], config['model'], config['filter'])

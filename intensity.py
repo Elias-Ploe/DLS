@@ -3,11 +3,24 @@ import matplotlib.pyplot as plt
 import os
 
 
+config = {
+    'folder_path': '/home/elias/proj/_photon_correlation/data_24_03_thymol/',
+    'real_time': 30e-6,
+    'channels': 5000000,
+}
+
+
+
+
+
+
 
 def get_intensity(sequence):
 
     intensity = np.sum(sequence)
     return intensity
+
+
 
 
 def binary_to_arr(file_path):
@@ -18,6 +31,8 @@ def binary_to_arr(file_path):
     photon_counts = np.frombuffer(binary_data[9:], dtype=np.uint8) # remove timestamp or whatever is at the beginning (first 9 values)
     
     return photon_counts
+
+
 
 
 def get_all_intensities(folder_path):
@@ -43,10 +58,12 @@ def get_all_intensities(folder_path):
     return all_intensities
 
 
+
+
 def plot_setup():
     fig, ax = plt.subplots(figsize=(6,4))
-    ax.set_xlabel(r"$t'$")
-    ax.set_ylabel(r"$I(t)$")
+    ax.set_xlabel('t [h]')
+    ax.set_ylabel('I [counts]')
     ax.tick_params(axis='both', labelsize=7)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -55,18 +72,33 @@ def plot_setup():
 
 
 
+
+def get_real_time_axis(time_step, channels, measurements):
+
+    real_time = channels * time_step
+
+    time_axis = []
+    for i in range(len(measurements)):
+        time_axis.append(real_time*(i+1))
+
+    return np.array(time_axis) / 3600 #convert to hours
+
+
 def analyse_intensities(folder_path):
     """ Calcualte the intensity for all Measurements. The Data needs to be in binary format. """
     intensities = get_all_intensities(folder_path)
-    t_values = np.arange(len(intensities))
+    t_values = get_real_time_axis(config['real_time'], config['channels'], intensities)
     fig, ax = plot_setup()
     ax.plot(t_values, intensities,
             marker='o', linestyle='', markersize=3, markerfacecolor='none', markeredgecolor='tomato',
             label = 'Intensity_data')
     ax.legend()
+
+    save_path = os.path.join(folder_path, 'intensities.png')
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
+
     
-path = '/home/elias/proj/_photon_correlation/data_24_03_thymol/'
-analyse_intensities(path)
-    
+
+analyse_intensities(config['folder_path'])
 
