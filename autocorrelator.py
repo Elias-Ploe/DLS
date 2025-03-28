@@ -6,6 +6,19 @@ from scipy.stats import norm
 
 
 
+config = {
+    'file_path': '/home/elias/proj/_photon_correlation/data_24_03_thymol/acf/acf_bin_1500.dat', # path to acf data
+    'model': 'frisken',
+    'distribution': True,          # plot the distribution of particle sizes. This is only possible of the cummulant model 'frisken' is used
+    'cutoff': 10000,                # up to which datapoint the acf data should be fitted. It should be atleast upwards to 10% of the maximum acf value, so it cant be too low
+    'acf_color': 'cornflowerblue',  # matplot colors
+    'fit_color': 'gold'
+}
+
+
+
+
+
 
 
 
@@ -40,7 +53,7 @@ class PlotManager:
         self.ax.tick_params(axis='both', labelsize=7)
         self.ax.spines['top'].set_visible(False)
         self.ax.spines['right'].set_visible(False)
-        self.ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+        self.ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
 
         
     def plot_acf(self, color = 'cornflowerblue', label_input = 'Acf Data'):
@@ -248,27 +261,6 @@ class CurveFitting:
 
     
 
-def test_binning(path):
-    sequence = np.loadtxt(path, usecols = [1])
-    acf_data, bins = autocorrelation_fft(sequence, binning = 1.03)
-    acf_data_unbinned = autocorrelation_fft(sequence)
-
-
-    fitter_bin = CurveFitting('exp', acf_data, bins).make_fit()
-    params = fitter_bin.get_params()
-    std_error = fitter_bin.get_std_error()
-
-    fitter = CurveFitting('exp', acf_data_unbinned).make_fit()
-    param_no_bin = fitter.get_params()
-    std_error_no_bin = fitter.get_std_error()
-
-
-    plt.plot(acf_data_unbinned[1:], marker = '.', markerfacecolor = 'none', markersize = 2 ,linestyle = '', label = 'acf', color = 'gold')
-    plt.plot(bins, acf_data, marker = 'o', markerfacecolor = 'none', markersize = 3, linestyle = '', label = 'acf_binned', color = 'cornflowerblue')
-    
-    print('w binning:', params[1], rf'$\pm$', std_error, 'no binning:', param_no_bin[1], rf'$\pm$', std_error_no_bin)
-
-
 
 
 def particle_radius(tau, viscocity = 0.932e-3, scattering_angle = (np.pi/2), wavelenght = 528e-9, refr_index = 1.333, T = 23 + 273.15):
@@ -305,17 +297,17 @@ def plot_distribution(gamma_bar, k2, time_step = 30e-6):
     y = norm.pdf(x, loc=radius, scale=std_dev)
 
     plt.figure(figsize=(6, 4))
-    plt.plot(x, y, color = 'cornflowerblue')
+    plt.plot(x, y, color = config['acf_color'])
     
     # A vertical line for the mean
-    plt.axvline(radius, linestyle='--', label=rf'Mean: {radius:.4g} $\pm$ {std_dev: .4g} nm', color = 'violet')  
-    plt.axvline(radius - std_dev, linestyle=':', color='orchid')
-    plt.axvline(radius + std_dev, linestyle=':', color='orchid')
+    plt.axvline(radius, linestyle='--', label=rf'Mean: {radius:.4g} $\pm$ {std_dev: .4g} nm', color = config['fit_color'])  
+    plt.axvline(radius - std_dev, linestyle=':', color=config['fit_color'])
+    plt.axvline(radius + std_dev, linestyle=':', color=config['fit_color'])
     
     # Labels, title, grid, legend
     plt.xlabel('Radius (nm)')
     plt.ylabel('Probability Density')
-    plt.grid(True)
+    plt.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
     plt.legend(loc='best')
     plt.gca().spines['top'].set_visible(False)
     plt.gca().spines['right'].set_visible(False)
@@ -371,15 +363,15 @@ def main_acf(file_path, model, distr = False):
     acf_values = np.loadtxt(file_path, usecols = [1])
     bins = np.loadtxt(file_path, usecols = [0])
 
-    fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
+    fitter_bin = CurveFitting(model, acf_values, bins).make_fit(cutoff=config['cutoff'])
     fit = fitter_bin.get_curve()
     parameters = fitter_bin.get_params()
     std_dev = fitter_bin.get_std_error()
 
     plt = PlotManager(acf_values, fit, parameters, std_dev, bins)
     plt.set_up()
-    plt.plot_acf()
-    plt.plot_fit('violet')
+    plt.plot_acf(color= config['acf_color'])
+    plt.plot_fit(config['fit_color'])
     plt.plot_info()
     plt.show_and_save()
 
@@ -388,5 +380,44 @@ def main_acf(file_path, model, distr = False):
 
 
 
+main_acf(config['file_path'], config['model'], distr=config['distribution'])
 
 
+
+
+
+# ------------- other stuff ----------
+
+
+def test_binning(path):
+    sequence = np.loadtxt(path, usecols = [1])
+    acf_data, bins = autocorrelation_fft(sequence, binning = 1.03)
+    acf_data_unbinned = autocorrelation_fft(sequence)
+
+
+    fitter_bin = CurveFitting('exp', acf_data, bins).make_fit()
+    params = fitter_bin.get_params()
+    std_error = fitter_bin.get_std_error()
+
+    fitter = CurveFitting('exp', acf_data_unbinned).make_fit()
+    param_no_bin = fitter.get_params()
+    std_error_no_bin = fitter.get_std_error()
+
+
+    plt.plot(acf_data_unbinned[1:], marker = '.', markerfacecolor = 'none', markersize = 2 ,linestyle = '', label = 'acf', color = 'gold')
+    plt.plot(bins, acf_data, marker = 'o', markerfacecolor = 'none', markersize = 3, linestyle = '', label = 'acf_binned', color = 'cornflowerblue')
+    plt.xscale('log')
+    plt.gca().set_xlim(0.9, 10000)
+    plt.gca().set_ylim(0.9, 1.8)
+    plt.gca().set_xlabel(r"$t'$")
+    plt.gca().set_ylabel(r"$g^{(2)}(t')$")
+    plt.gca().tick_params(axis='both', labelsize=7)
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+    plt.gca().grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+    plt.gca().legend()
+
+    plt.savefig('/home/elias/proj/_photon_correlation/binnobin.png', dpi=300)
+    plt.show()
+    
+    print('w binning:', params[1], rf'$\pm$', std_error, 'no binning:', param_no_bin[1], rf'$\pm$', std_error_no_bin)

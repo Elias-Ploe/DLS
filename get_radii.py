@@ -7,13 +7,13 @@ import viscocity as vscy
 
 
 config = {
-    'folder_path': '/home/elias/proj/_photon_correlation/data_15_03_thymol/',
+    'folder_path': '/home/elias/proj/_photon_correlation/data_24_03_thymol/',
     'real_time': 30e-6,
     'channels': 5000000,
     'model': 'kww',
     'T': 293,
-    'date': 15.3,
-    'filter': 1e3
+    'date': 24.3, # this assures the right mole fraction for viscocitiy are calculated
+    'filter': 1e5
 }
 
 
@@ -191,7 +191,7 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e5):
         data = np.column_stack((taus, std_devs))
         np.savetxt(tau_path, data)
 
-    if os.path.isfile(tau_path):
+    elif os.path.isfile(tau_path):
         print('using existing values')
         taus = np.loadtxt(tau_path, usecols=0)
         std_devs = np.loadtxt(tau_path, usecols=1)
