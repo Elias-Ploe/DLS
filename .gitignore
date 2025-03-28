@@ -1,0 +1,8 @@
+# Ignore everything
+*
+
+# Allow all folders (so .py files inside them are visible)
+!*/
+
+# Allow only .py files
+!*.py
