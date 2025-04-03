@@ -1,18 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from autocorrelator import PlotManager, CurveFitting, autocorrelation_fft
+from autocorrelator import CurveFitting, autocorrelation_fft
 import viscocity as vscy
 
 
 
 config = {
-    'folder_path': '/home/elias/proj/_photon_correlation/data_24_03_thymol/',
+    'folder_path': '/home/elias/proj/_photon_correlation/data_27_03_thymol',
     'real_time': 30e-6,
     'channels': 5000000,
     'model': 'kww',
     'T': 293,
-    'date': 24.3, # this assures the right mole fraction for viscocitiy are calculated
+    'date': 27.3, # this assures the right mole fraction for viscocitiy are calculated
     'filter': 1e5
 }
 
@@ -75,19 +75,13 @@ def fit_all_acf(folder_path, model, error = True):
         try:
             print(f'fitting: {i}')
             fit = CurveFitting(model, acf, bins).make_fit()
-            parameters = fit.get_params()
+            tau = fit.get_tau()
 
             if error is True:
                 std_dev = fit.get_std_error()
                 all_std_dev.append(std_dev)
 
-
-            if model == 'frisken':
-                all_tau.append(1/parameters[2])
-            elif model == 'kww':
-                all_tau.append(parameters[2])
-            elif model == 'exp':
-                all_tau.append(parameters[1])
+            all_tau.append(tau)
 
         except Exception as e:
             print(f"Fit failed for {i}, reason: {e}")
@@ -209,8 +203,8 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e5):
     # calculate r, std_dev, mean_r and plot all the data
     visc = vscy.get_viscocity(config['T'], config['date'])
 
-    r = particle_radius(tau_masked * time_step, viscocity=visc)
-    std_dev_r = radius_std(std_devs * time_step, viscocity=visc)
+    r = particle_radius(tau_masked * time_step, viscocity=visc, T=config['T'])
+    std_dev_r = radius_std(std_devs * time_step, viscocity=visc, T=config['T'])
 
 
     #mean_r = np.mean(r)

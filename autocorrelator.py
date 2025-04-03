@@ -3,18 +3,26 @@ import matplotlib.pyplot as plt
 import os
 from scipy.optimize import curve_fit
 from scipy.stats import norm
+import viscocity as vscy
 
 
 
 config = {
-    'file_path': '/home/elias/proj/_photon_correlation/data_24_03_thymol/acf/acf_bin_1500.dat', # path to acf data
+    'file_path': '/home/elias/proj/_photon_correlation/acf_bin_1.dat', # path to acf data
     'model': 'frisken',
     'distribution': True,          # plot the distribution of particle sizes. This is only possible of the cummulant model 'frisken' is used
-    'cutoff': 10000,                # up to which datapoint the acf data should be fitted. It should be atleast upwards to 10% of the maximum acf value, so it cant be too low
+    'cutoff': 10000,                # up to which datapoint the acf data should be fitted. It should be atleast upwards to 10% of the maximum acf value
     'acf_color': 'cornflowerblue',  # matplot colors
-    'fit_color': 'gold'
-}
+    'fit_color': 'dimgray',
+    'is_acf': True,
 
+#--------- experimental data -------
+
+    'real_time': 30e-6,
+    'channels': 5000000,
+    'T': 293,
+    'date': 3.4, # this assures the right mole fraction for viscocitiy are calculated
+}
 
 
 
@@ -178,7 +186,6 @@ def autocorrelation_fft(sequence, binning = None):
         bin_centers[i] =  (end + start) / 2.0
 
 
-
     return binned_g2, bin_centers - 3/2 # start at 0
 
 
@@ -256,14 +263,24 @@ class CurveFitting:
             return np.sqrt(np.diag(self.pcov)[2])
         
         if self.model_name == 'frisken':
-            print('std_dev for frisken needs to be added, for now it is 1')
-            return 1
-
+            print('std_dev for frisken might not be correct')
+            return np.sqrt(np.diag(1/self.pcov)[2])
+    
+    def get_tau(self):
+        
+        if self.model_name == 'exp':
+            return self.popt[1]
+        
+        if self.model_name == 'kww':
+            return self.popt[2]
+        
+        if self.model_name == 'frisken':
+            return 1/self.popt[2]
     
 
 
 
-def particle_radius(tau, viscocity = 0.932e-3, scattering_angle = (np.pi/2), wavelenght = 528e-9, refr_index = 1.333, T = 23 + 273.15):
+def particle_radius(tau, viscocity = 1.0016e-3, scattering_angle = (np.pi/2), wavelenght = 528e-9, refr_index = 1.333, T = 293):
 
     k_B = 1.380649e-23 
     q = ((4 * np.pi * refr_index / wavelenght)) * np.sin(scattering_angle/2)
@@ -273,13 +290,16 @@ def particle_radius(tau, viscocity = 0.932e-3, scattering_angle = (np.pi/2), wav
 
 
 
-def radius_std(tau_std, viscocity=0.932e-3, scattering_angle=np.pi/2,
-               wavelength=528e-9, refr_index=1.333, T=296.15):
+def radius_std(tau_std, viscocity=1.0016e-3, scattering_angle=np.pi/2,
+               wavelength=528e-9, refr_index=1.333, T=293):
     k_B = 1.380649e-23
     q   = (4 * np.pi * refr_index / wavelength) * np.sin(scattering_angle/2)
     # Derivative of R/tau:
     K   = (q**2 * k_B * T) / (6 * np.pi * viscocity)
     return K * tau_std
+
+
+
 
 
 
@@ -291,7 +311,7 @@ def plot_distribution(gamma_bar, k2, time_step = 30e-6):
     #std_dev_gamma = np.sqrt(k2)
     #std_dev_tau = std_dev_gamma / gamma_bar**2 # standard error prog
     #std_dev = radius_std(std_dev_tau * time_step) * 1e9 # convert standard dev to nm
-    std_dev = (np.sqrt(k2) / gamma_bar)  # this is implies a a lot (check Mailer 2015)
+    std_dev = (k2 / gamma_bar**2)  # this is implies a a lot (check Mailer 2015)
 
     x = np.linspace(radius - 4*std_dev, radius + 4*std_dev, 1000)
     y = norm.pdf(x, loc=radius, scale=std_dev)
@@ -300,7 +320,7 @@ def plot_distribution(gamma_bar, k2, time_step = 30e-6):
     plt.plot(x, y, color = config['acf_color'])
     
     # A vertical line for the mean
-    plt.axvline(radius, linestyle='--', label=rf'Mean: {radius:.4g} $\pm$ {std_dev: .4g} nm', color = config['fit_color'])  
+    plt.axvline(radius, linestyle='--', label=rf'Mean: {radius:.5g} $\pm$ {std_dev: .4g} nm', color = config['fit_color'])  
     plt.axvline(radius - std_dev, linestyle=':', color=config['fit_color'])
     plt.axvline(radius + std_dev, linestyle=':', color=config['fit_color'])
     
@@ -358,9 +378,14 @@ def acf_from_binaryfiles(folder_path):
 
 
 
-def main_acf(file_path, model, distr = False):
+def main_acf(file_path, model, distr = False, is_acf = True):
 
-    acf_values = np.loadtxt(file_path, usecols = [1])
+    if not is_acf:
+        sequence = np.loadtxt(file_path, usecols = [1])
+        acf_values = autocorrelation_fft(sequence)
+
+    else:
+        acf_values = np.loadtxt(file_path, usecols = [1])
     bins = np.loadtxt(file_path, usecols = [0])
 
     fitter_bin = CurveFitting(model, acf_values, bins).make_fit(cutoff=config['cutoff'])
@@ -380,9 +405,27 @@ def main_acf(file_path, model, distr = False):
 
 
 
-main_acf(config['file_path'], config['model'], distr=config['distribution'])
+
+def print_radius(file_path, model, time_step, temp, is_acf = True):
+    if not is_acf:
+        sequence = np.loadtxt(file_path, usecols = [1])
+        acf_values = autocorrelation_fft(sequence)
+    else:
+        acf_values = np.loadtxt(file_path, usecols = [1])
+    bins = np.loadtxt(file_path, usecols = [0])
+
+    fitter_bin = CurveFitting(model, acf_values, bins).make_fit(cutoff=config['cutoff'])
+    fit = fitter_bin.get_curve()
+    parameters = fitter_bin.get_params()
+    std_dev = fitter_bin.get_std_error()
+    tau = fitter_bin.get_tau()
+
+    r = particle_radius(tau * time_step, T=temp)
+    std_dev_r = radius_std(std_dev * time_step, T=temp)
 
 
+    print(rf'{r} $\pm$ {std_dev_r}')
+    
 
 
 
@@ -421,3 +464,12 @@ def test_binning(path):
     plt.show()
     
     print('w binning:', params[1], rf'$\pm$', std_error, 'no binning:', param_no_bin[1], rf'$\pm$', std_error_no_bin)
+
+
+
+
+
+if __name__ == "__main__":
+    main_acf(config['file_path'], config['model'], distr=config['distribution'], is_acf=config['is_acf'])
+    #viscocity = vscy.get_viscocity(config['T'], config['date'])
+    print_radius(config['file_path'], config['model'], config['real_time'], config['T'], is_acf=config['is_acf'])

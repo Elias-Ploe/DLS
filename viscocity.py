@@ -39,7 +39,8 @@ mass_data = {
     15.3: {"water": 3.472, "ethanol": 0.127},
     20.3: {"water": 3.184, "ethanol": 0.290},
     24.3: {"water": 3.801, "ethanol": 0.197},
-    27.3: {"water": 3.801, "ethanol": 0.197}
+    27.3: {"water": 3.801, "ethanol": 0.197},
+    3.4: {"water": 3.801, "ethanol": 0.197}
 }
 
 # model constant from literature (weird korean one)
