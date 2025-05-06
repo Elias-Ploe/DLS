@@ -40,7 +40,12 @@ mass_data = {
     20.3: {"water": 3.184, "ethanol": 0.290},
     24.3: {"water": 3.801, "ethanol": 0.197},
     27.3: {"water": 3.801, "ethanol": 0.197},
-    3.4: {"water": 3.801, "ethanol": 0.197}
+    3.4: {"water": 3.801, "ethanol": 0.197},
+    8.4: {"water": 3.800, "ethanol": 0.150},
+    10.4: {"water": 3.573, "ethanol": 0.039},
+    22.4: {"water": 3.575, "ethanol": 0.041}, #final temp
+    29.4: {"water": 3.534, "ethanol": 0.040},
+    6.5: {"water": 3.620, "ethanol": 0.053},
 }
 
 # model constant from literature (weird korean one)
@@ -52,6 +57,7 @@ A2 = 976.050
 # viscocity Data from literature
 
 viscosity_data = {
+    288: {"water": 1.1380e-3, "ethanol": 1.5210e-3}, #chatgpt might be bs, correct later
     293: {"water": 1.0030e-3, "ethanol": 1.1890e-3},
     298: {"water": 0.8914e-3, "ethanol": 1.0995e-3},
     303: {"water": 0.7982e-3, "ethanol": 1.0606e-3},
@@ -70,8 +76,44 @@ def get_viscocity(T, date):
     mole_frac_ethanol, mole_frac_water = calculate_mole_fractions(mass_data[date]['ethanol'], mass_data[date]['water'])
 
     ln_eta_m = jouyban_acree_model(mole_frac_water, mole_frac_ethanol, eta_water, eta_ethanol, A0, A1, A2, T)
-
+    print(mole_frac_water, mole_frac_ethanol, np.exp(ln_eta_m))
     return np.exp(ln_eta_m)
 
 
-    
+
+
+#get_viscocity(293, 14.3)
+
+
+def calculate_concentrations(mixture_mass, total_mass):
+    # Given constants
+    ethanol_share_in_mixture = 0.9104531
+    substance_share_in_mixture = 0.0895469
+
+    # masses
+    mass_ethanol = mixture_mass * ethanol_share_in_mixture
+    mass_thymol = mixture_mass * substance_share_in_mixture
+
+    # mass water
+    mass_water = total_mass - mixture_mass
+
+
+    # rel shares final
+    rel_ethanol = mass_ethanol / total_mass
+    rel_substance = mass_thymol / total_mass
+    rel_water = mass_water / total_mass
+
+    results = {
+        "mass_ethanol": float(np.round(mass_ethanol,3)),
+        "mass_thymol": float(np.round(mass_thymol, 3)),
+        "mass_water": float(np.round(mass_water,3)),
+        "rel_ethanol": float(np.round(rel_ethanol*100,2)),
+        "rel_thymol": float(np.round(rel_substance*100,2)),
+        "rel_water": float(np.round(rel_water*100,2))
+    }
+
+    print(results)
+
+if __name__ == "__main__":
+    #calculate_concentrations(0.041, 3.575)
+    get_viscocity(308, 22.4)

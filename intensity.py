@@ -4,7 +4,7 @@ import os
 
 
 config = {
-    'folder_path': '/home/elias/proj/_photon_correlation/data_31_03_thymol',
+    'folder_path': '/home/elias/proj/_photon_correlation/data_20_03_thymol',
     'real_time': 30e-6,
     'channels': 5000000,
 }
@@ -64,7 +64,6 @@ def plot_setup():
     fig, ax = plt.subplots(figsize=(6,4))
     ax.set_xlabel('t [h]')
     ax.set_ylabel('I [counts]')
-    ax.tick_params(axis='both', labelsize=7)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)

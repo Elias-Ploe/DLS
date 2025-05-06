@@ -8,20 +8,17 @@ import viscocity as vscy
 
 
 config = {
-    'file_path': '/home/elias/proj/_photon_correlation/acf_bin_1.dat', # path to acf data
-    'model': 'frisken',
-    'distribution': True,          # plot the distribution of particle sizes. This is only possible of the cummulant model 'frisken' is used
-    'cutoff': 10000,                # up to which datapoint the acf data should be fitted. It should be atleast upwards to 10% of the maximum acf value
+    'file_path': '/home/elias/proj/_photon_correlation/data_14_03_thymol/OUT5.DAT', # path to acf data
+    'model': 'frisken',                 # exp, kww, frisken
     'acf_color': 'cornflowerblue',  # matplot colors
     'fit_color': 'dimgray',
-    'is_acf': True,
 
 #--------- experimental data -------
 
     'real_time': 30e-6,
     'channels': 5000000,
     'T': 293,
-    'date': 3.4, # this assures the right mole fraction for viscocitiy are calculated
+    'date': 10.4, # this assures the right mole fraction for viscocitiy are calculated
 }
 
 
@@ -96,12 +93,12 @@ class PlotManager:
         elif self.fittype == 'frisken':
             gamma_bar_fit = self.parameters[2]
             K2_fit = self.parameters[3]
-            self.ax.plot([], marker='', linestyle='',markerfacecolor='none' , label=fr"$\tau = \frac{{1}}{{\bar \Gamma}} = {np.round(1/gamma_bar_fit, 3)}$, $\gamma = \frac{{K_2^2}}{{\bar \Gamma^2}} = {np.round(K2_fit**2 / gamma_bar_fit**2, 8)}$", markeredgecolor = 'gray')
+            self.ax.plot([], marker='', linestyle='',markerfacecolor='none' , label=fr"$\tau = \frac{{1}}{{\bar \Gamma}} = {np.round(1/gamma_bar_fit, 3)}$, $\gamma = \frac{{K_2}}{{\bar \Gamma^2}} = {np.round(K2_fit / gamma_bar_fit**2, 5)}$", markeredgecolor = 'gray')
 
 
     def show_and_save(self, save_path = "/home/elias/proj/_photon_correlation/plot.png"):
 
-        self.ax.legend()
+        self.ax.legend(loc='upper right')
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.show()
 
@@ -164,7 +161,7 @@ def autocorrelation_fft(sequence, binning = None):
     g2_values = correlation / normalization
 
     if binning is None:
-        return g2_values 
+        return g2_values, np.arange(len(g2_values))
 
     #binning
 
@@ -208,7 +205,7 @@ class CurveFitting:
 
         self.y_values = acf
         self.func = self.models[model]['func']
-        self.guess = self.models[model]['guess']
+        self.guess = self.models[model]['guess'] # this will be updated in a loop
         
         if bins is not None:
             self.x_values = bins
@@ -237,13 +234,21 @@ class CurveFitting:
 
 
     
-    def make_fit(self, cutoff = 10000):
+    def make_fit(self):
 
-        index = np.where(self.x_values >= cutoff)[0][0]
-        self.popt, self.pcov, = curve_fit(self.func, self.x_values[:index], self.y_values[:index], p0 = self.guess)
+        original_amplitude = self.y_values[0]
+        cutoff = (original_amplitude / 100) +1
+        index = np.where(self.y_values <= cutoff)[0][0] + 1
+        #cutoff_manual = 1000
+        #index_manual = np.where(self.x_values >= cutoff_manual)[0][0]
+        self.popt, self.pcov, = curve_fit(self.func, self.x_values[0:index], self.y_values[0:index], p0 = self.guess)
         
         x_linear = np.arange(int(max(self.x_values)))
         self.fitted_func = self.func(x_linear, *self.popt)
+
+        self.models[self.model_name]['guess'] = list(self.popt)
+        self.guess = list(self.popt)
+        print(f"Cutoff at index {index}, t = {self.x_values[index]:.2f}, g2 = {self.y_values[index]:.3f}")
 
         return self
 
@@ -263,8 +268,7 @@ class CurveFitting:
             return np.sqrt(np.diag(self.pcov)[2])
         
         if self.model_name == 'frisken':
-            print('std_dev for frisken might not be correct')
-            return np.sqrt(np.diag(1/self.pcov)[2])
+            return np.sqrt(self.popt[3]) / self.popt[2]
     
     def get_tau(self):
         
@@ -301,44 +305,6 @@ def radius_std(tau_std, viscocity=1.0016e-3, scattering_angle=np.pi/2,
 
 
 
-
-
-
-def plot_distribution(gamma_bar, k2, time_step = 30e-6):
-
-    # gamma_bar mean, k2 var, k3 skew
-    radius = particle_radius(1/gamma_bar * time_step) * 1e9 # convert mean radius to nm
-    #std_dev_gamma = np.sqrt(k2)
-    #std_dev_tau = std_dev_gamma / gamma_bar**2 # standard error prog
-    #std_dev = radius_std(std_dev_tau * time_step) * 1e9 # convert standard dev to nm
-    std_dev = (k2 / gamma_bar**2)  # this is implies a a lot (check Mailer 2015)
-
-    x = np.linspace(radius - 4*std_dev, radius + 4*std_dev, 1000)
-    y = norm.pdf(x, loc=radius, scale=std_dev)
-
-    plt.figure(figsize=(6, 4))
-    plt.plot(x, y, color = config['acf_color'])
-    
-    # A vertical line for the mean
-    plt.axvline(radius, linestyle='--', label=rf'Mean: {radius:.5g} $\pm$ {std_dev: .4g} nm', color = config['fit_color'])  
-    plt.axvline(radius - std_dev, linestyle=':', color=config['fit_color'])
-    plt.axvline(radius + std_dev, linestyle=':', color=config['fit_color'])
-    
-    # Labels, title, grid, legend
-    plt.xlabel('Radius (nm)')
-    plt.ylabel('Probability Density')
-    plt.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
-    plt.legend(loc='best')
-    plt.gca().spines['top'].set_visible(False)
-    plt.gca().spines['right'].set_visible(False)
-    
-    # Layout and save
-    plt.tight_layout()
-    plt.savefig("/home/elias/proj/_photon_correlation/plot_distr.png", dpi=300)
-    plt.show()
-
-
-
 def binary_to_arr(file_path):
 
     with open(file_path, "rb") as file:
@@ -347,6 +313,17 @@ def binary_to_arr(file_path):
     photon_counts = np.frombuffer(binary_data[9:], dtype=np.uint8) # remove timestamp or whatever is at the beginning (first 9 values)
     
     return photon_counts
+
+
+
+
+def single_acf_from_binary(file_path):
+
+    sequence = binary_to_arr(file_path)
+    #sequence = np.loadtxt(file_path, usecols = [1])
+    acf_binned, bins = autocorrelation_fft(sequence, binning=1.01)
+    
+    return acf_binned, bins
 
 
 
@@ -378,17 +355,12 @@ def acf_from_binaryfiles(folder_path):
 
 
 
-def main_acf(file_path, model, distr = False, is_acf = True):
+def main_acf(file_path, model):
 
-    if not is_acf:
-        sequence = np.loadtxt(file_path, usecols = [1])
-        acf_values = autocorrelation_fft(sequence)
-
-    else:
-        acf_values = np.loadtxt(file_path, usecols = [1])
-    bins = np.loadtxt(file_path, usecols = [0])
-
-    fitter_bin = CurveFitting(model, acf_values, bins).make_fit(cutoff=config['cutoff'])
+    print('Calculating ACF')
+    acf_values, bins = single_acf_from_binary(file_path)
+    print('Plotting Data')
+    fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
     fit = fitter_bin.get_curve()
     parameters = fitter_bin.get_params()
     std_dev = fitter_bin.get_std_error()
@@ -399,9 +371,6 @@ def main_acf(file_path, model, distr = False, is_acf = True):
     plt.plot_fit(config['fit_color'])
     plt.plot_info()
     plt.show_and_save()
-
-    if model == 'frisken' and distr is True:
-        plot_distribution(parameters[2], parameters[3])
 
 
 
@@ -414,7 +383,7 @@ def print_radius(file_path, model, time_step, temp, is_acf = True):
         acf_values = np.loadtxt(file_path, usecols = [1])
     bins = np.loadtxt(file_path, usecols = [0])
 
-    fitter_bin = CurveFitting(model, acf_values, bins).make_fit(cutoff=config['cutoff'])
+    fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
     fit = fitter_bin.get_curve()
     parameters = fitter_bin.get_params()
     std_dev = fitter_bin.get_std_error()
@@ -470,6 +439,6 @@ def test_binning(path):
 
 
 if __name__ == "__main__":
-    main_acf(config['file_path'], config['model'], distr=config['distribution'], is_acf=config['is_acf'])
+    main_acf(config['file_path'], config['model'])
     #viscocity = vscy.get_viscocity(config['T'], config['date'])
-    print_radius(config['file_path'], config['model'], config['real_time'], config['T'], is_acf=config['is_acf'])
+    #print_radius(config['file_path'], config['model'], config['real_time'], config['T'])
