@@ -8,7 +8,7 @@ import viscocity as vscy
 
 
 config = {
-    'file_path': '/home/elias/proj/_photon_correlation/data_14_03_thymol/OUT5.DAT', # path to acf data
+    'file_path': '/home/elias/proj/_photon_correlation/final_temp_20/OUT450.DAT', # path to acf data
     'model': 'frisken',                 # exp, kww, frisken
     'acf_color': 'cornflowerblue',  # matplot colors
     'fit_color': 'dimgray',
@@ -241,8 +241,18 @@ class CurveFitting:
         index = np.where(self.y_values <= cutoff)[0][0] + 1
         #cutoff_manual = 1000
         #index_manual = np.where(self.x_values >= cutoff_manual)[0][0]
-        self.popt, self.pcov, = curve_fit(self.func, self.x_values[0:index], self.y_values[0:index], p0 = self.guess)
-        
+
+        if self.model_name == "frisken":
+        # add bounds to frisken
+            lower_bounds = [0.97, 0, 0, 0, 0]
+            upper_bounds = [1.03, np.inf, np.inf, np.inf, np.inf]
+            bounds = (lower_bounds, upper_bounds)
+            self.popt, self.pcov = curve_fit(self.func, self.x_values[0:index], self.y_values[0:index],
+                                            p0=self.guess, bounds=bounds)
+        else:
+            self.popt, self.pcov = curve_fit(self.func, self.x_values[0:index], self.y_values[0:index],
+                                            p0=self.guess)
+            
         x_linear = np.arange(int(max(self.x_values)))
         self.fitted_func = self.func(x_linear, *self.popt)
 

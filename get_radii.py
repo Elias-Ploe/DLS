@@ -7,12 +7,12 @@ import viscocity as vscy
 
 
 config = {
-    'folder_path': '/home/elias/proj/_photon_correlation/data_20_03_thymol',
+    'folder_path': '/home/elias/proj/_photon_correlation/data_10_04_thymol',
     'real_time': 30e-6,
     'channels': 5000000,
     'model': 'kww',
     'T': 293,
-    'date':20.3, # this assures the right mole fraction for viscocitiy are calculated
+    'date':10.4, # this assures the right mole fraction for viscocitiy are calculated
     'filter': 1e3
 }
 
