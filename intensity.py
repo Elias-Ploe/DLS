@@ -4,7 +4,7 @@ import os
 
 
 config = {
-    'folder_path': '/home/elias/proj/_photon_correlation/data_10_04_thymol',
+    'folder_path': '/home/elias/proj/_photon_correlation/long_term_meas/week_2',
     'real_time': 30e-6,
     'channels': 5000000,
 }

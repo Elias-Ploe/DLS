@@ -46,6 +46,16 @@ mass_data = {
     22.4: {"water": 3.575, "ethanol": 0.041}, #final temp
     29.4: {"water": 3.534, "ethanol": 0.040},
     6.5: {"water": 3.620, "ethanol": 0.053},
+    14.5: {"water": 3.528, "ethanol": 0.151}, #new concentration highest
+    22.5: {"water": 3.528, "ethanol": 0.151},
+    27.5: {"water": 3.496, "ethanol": 0.101}, # new_meas folder from here onward
+    28.5: {"water": 3.234, "ethanol": 0.148},
+    29.5:  {"water": 3.643, "ethanol": 0.093},
+    30.5: {"water": 3.510, "ethanol": 0.076},
+    3.6: {"water": 3.510, "ethanol": 0.051}, # correct later
+    4.6: {"water": 3.514, "ethanol": 0.077}, # T15
+    10.6: {"water": 3.517, "ethanol": 0.075} # T10
+
 }
 
 # model constant from literature (weird korean one)
@@ -57,7 +67,8 @@ A2 = 976.050
 # viscocity Data from literature
 
 viscosity_data = {
-    288: {"water": 1.1380e-3, "ethanol": 1.5210e-3}, #chatgpt might be bs, correct later
+    283: {"water": 1.1306e-3, "ethanol": 1.3940e-3},
+    288: {"water": 1.1380e-3, "ethanol": 1.2610e-3}, #chatgpt might be bs, correct later
     293: {"water": 1.0030e-3, "ethanol": 1.1890e-3},
     298: {"water": 0.8914e-3, "ethanol": 1.0995e-3},
     303: {"water": 0.7982e-3, "ethanol": 1.0606e-3},
@@ -84,15 +95,20 @@ def get_viscocity(T, date):
 
 #get_viscocity(293, 14.3)
 
+concentrations = {
+    'mix_1': {'thymol': 0.0895469, 'ethanol': 0.9104531},
+    'mix_2': {'thymol': 0.0908480, 'ethanol': 0.9091519}
+}
+
 
 def calculate_concentrations(mixture_mass, total_mass):
     # Given constants
-    ethanol_share_in_mixture = 0.9104531
-    substance_share_in_mixture = 0.0895469
+    ethanol_share_in_mixture = concentrations['mix_2']['ethanol']
+    thymol_share_in_mixture = concentrations["mix_2"]['thymol']
 
     # masses
     mass_ethanol = mixture_mass * ethanol_share_in_mixture
-    mass_thymol = mixture_mass * substance_share_in_mixture
+    mass_thymol = mixture_mass * thymol_share_in_mixture
 
     # mass water
     mass_water = total_mass - mixture_mass
@@ -115,5 +131,5 @@ def calculate_concentrations(mixture_mass, total_mass):
     print(results)
 
 if __name__ == "__main__":
-    #calculate_concentrations(0.041, 3.575)
-    get_viscocity(308, 22.4)
+    calculate_concentrations(0.077, 3.514)
+    #get_viscocity(308, 22.4)

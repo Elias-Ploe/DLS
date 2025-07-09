@@ -7,12 +7,12 @@ import viscocity as vscy
 
 
 config = {
-    'folder_path': '/home/elias/proj/_photon_correlation/data_10_04_thymol',
+    'folder_path': '/home/elias/proj/_photon_correlation/10C_thym',
     'real_time': 30e-6,
     'channels': 5000000,
     'model': 'kww',
-    'T': 293,
-    'date':10.4, # this assures the right mole fraction for viscocitiy are calculated
+    'T': 283,
+    'date':10.6, # this assures the right mole fraction for viscocitiy are calculated
     'filter': 1e3
 }
 
@@ -52,7 +52,7 @@ def acf_from_binaryfiles(folder_path):
         print(f'cooking {f}:')
 
         sequence = binary_to_arr(file_path)
-        acf_binned, bins = autocorrelation_fft(sequence, binning=1.03)
+        acf_binned, bins = autocorrelation_fft(sequence, binning=1.01)
 
 
         stacked = np.column_stack((bins, acf_binned))
@@ -71,6 +71,7 @@ def fit_all_acf(folder_path, model, error = True):
 
     all_tau = []
     all_std_dev = []
+    all_alpha = []
     for i, (acf, bins) in enumerate(zip(data_acf, data_bins)):
         try:
             print(f'fitting: {i}')
@@ -80,14 +81,22 @@ def fit_all_acf(folder_path, model, error = True):
             if error is True:
                 std_dev = fit.get_std_error()
                 all_std_dev.append(std_dev)
+            
+            if model == 'kww':
+                alpha = fit.get_params()[1]
+                all_alpha.append(alpha)
 
             all_tau.append(tau)
 
         except Exception as e:
             print(f"Fit failed for {i}, reason: {e}")
             continue
-
-    return np.array(all_tau), np.array(all_std_dev)
+    
+    if model == 'kww':
+        return np.array(all_tau), np.array(all_std_dev), np.array(all_alpha)
+    
+    else:
+        np.array(all_tau), np.array(all_std_dev), np.array([])
 
 
 
@@ -186,7 +195,7 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e3):
     tau_path = os.path.join(folder_path, 'all_tau.txt')
 
     if not os.path.isfile(tau_path):
-        taus, std_devs = fit_all_acf(acf_folder, model)
+        taus, std_devs, alphas = fit_all_acf(acf_folder, model)
         data = np.column_stack((taus, std_devs))
         np.savetxt(tau_path, data)
 
@@ -204,6 +213,7 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e3):
     mask = (taus >= 0) & (taus < filter) 
     tau_masked = taus[mask]
     std_devs = std_devs[mask]
+    alphas = alphas[mask]
 
     # calculate r, std_dev, mean_r and plot all the data
     visc = vscy.get_viscocity(config['T'], config['date'])
@@ -211,11 +221,11 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e3):
     r = particle_radius(tau_masked * time_step, viscocity=visc, T=config['T'])
     std_dev_r = radius_std(std_devs * time_step, viscocity=visc, T=config['T'])
 
-
-    #mean_r = np.mean(r)
     plot_r(r, std_dev_r)
+
+
     r_path = os.path.join(folder_path, 'all_r.txt')
-    stacked = np.column_stack((r, std_dev_r)) # save filtered r and tau to file for later use
+    stacked = np.column_stack((r, std_dev_r, alphas)) # save filtered r and tau to file for later use
     np.savetxt(r_path, stacked)
 
 
@@ -224,38 +234,71 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e3):
 
 
 
-# fix time :/
+
 def walking_avg_r():
 
-    base_path = '/home/elias/proj/_photon_correlation/final_temp_'
-    paths = [f"{base_path}{i}/all_r.txt" for i in range(15, 36, 5)]
-    colors = ['#0000FF', '#00BFFF', '#00FFFF', '#FFB6C1', '#FF6347', '#FF0000']
+    base_path = '/home/elias/proj/_photon_correlation/plot_low_c_T_copy/meas_'
+    temperature = [20, 15, 10]
+
+
+    #base_path = '/home/elias/proj/_photon_correlation/for_plot_walk_avg/high_concentration/meas_'
+    # meas_3: 0.19 meas_4: 0.33, meas_5 0.45 wt. % thymol, 
+    #thymol_concentrations = [0.19, 0.33, 0.45]
+
+
+    paths = [f"{base_path}{i}/all_r.txt" for i in range(1, 4)]
+    #colors = ['#88CCEE', '#44AA99', '#117733', '#DDCC77', '#EE9966', '#CC6677', '#CC6677']
+    #colors = ['#44AA99','#117733', '#DDCC77']
+    colors = ['#CC6677', '#DDCC77', '#44AA99']
+    
 
     fig, ax = plt.subplots(figsize=(6, 4))
 
-    for i, (path, col) in enumerate(zip(paths, colors)):
+    for conc, path, col in zip(temperature, paths, colors):
         r = np.loadtxt(path, usecols=0)*1e6
-        r = r[0:600]
+        r_dev = np.loadtxt(path, usecols=1)*1e6
+        r = r[20:]
+        r_dev = r_dev[20:]
 
         N = len(r)
-        avg_bin = 10
+        avg_bin = 5
         all_avg_r = []
+        all_std_r = []
 
-        j=0
+        j = 0
         while j < N // avg_bin:
-            avg_r = np.mean(r[j * avg_bin : (j + 1) * avg_bin])
+            bin_data = r[j * avg_bin : (j + 1) * avg_bin]
+            bin_errs = r_dev[j * avg_bin : (j + 1) * avg_bin]
+
+            avg_r = np.mean(bin_data)
+
+            # Combined error per bin:
+            # 1. Measurement errors
+            # 2. Statistical std
+            # Total bin uncertainty (gauß) = sqrt( sum(meas_errors^2) / n^2 + std^2 / n )
+            stat_std = np.std(bin_data, ddof=1)
+            meas_var = np.sum(bin_errs**2) / avg_bin**2
+            stat_var = stat_std**2 / avg_bin
+            total_std = np.sqrt(meas_var + stat_var)
+
             all_avg_r.append(avg_r)
+            all_std_r.append(total_std)
             j += 1
-        
-        
-        #t = get_real_time_axis(config['real_time'], config['channels'], r) * avg_bin
-        plt.plot(all_avg_r, color = col, label = f'{15+(i*5)} °C')
+
+        all_avg_r = np.array(all_avg_r)
+        all_std_r = np.array(all_std_r)
+
+        t = get_real_time_axis(config['real_time'], config['channels'], all_avg_r, 'h') * avg_bin
+
+        plt.plot(t, all_avg_r, color=col, label=f'{conc} °C')
+        plt.fill_between(t, all_avg_r - all_std_r, all_avg_r + all_std_r,
+                         color=col, alpha=0.2)
     
 
-    ax.set_xlabel('t [h]', fontsize=12)
-    ax.set_ylabel(r'r [$\mathrm{\mu m}$]', fontsize=12)
+    ax.set_xlabel('t (h)', fontsize=12)
+    ax.set_ylabel(r'r ($\mathrm{\mu m}$)', fontsize=12)
     ax.grid(True, linestyle=':', linewidth=0.7, alpha=0.6)
-    ax.legend(loc='upper left', fontsize=11, frameon=True)
+    ax.legend(loc='upper right', fontsize=11, frameon=True)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.savefig('/home/elias/proj/_photon_correlation/walk_avg.png', dpi=300)
@@ -265,5 +308,5 @@ def walking_avg_r():
 
 if __name__ == "__main__":
 
-    main_r(config['folder_path'], config['real_time'], config['model'], config['filter'])
-    #walking_avg_r()
+    #main_r(config['folder_path'], config['real_time'], config['model'], config['filter'])
+    walking_avg_r()

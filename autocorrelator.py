@@ -8,8 +8,8 @@ import viscocity as vscy
 
 
 config = {
-    'file_path': '/home/elias/proj/_photon_correlation/final_temp_20/OUT450.DAT', # path to acf data
-    'model': 'frisken',                 # exp, kww, frisken
+    'file_path': '/home/elias/proj/_photon_correlation/10C_thym/OUT1000.DAT', # path to acf data
+    'model': 'kww',                 # exp, kww, frisken or None for no fit
     'acf_color': 'cornflowerblue',  # matplot colors
     'fit_color': 'dimgray',
 
@@ -18,7 +18,7 @@ config = {
     'real_time': 30e-6,
     'channels': 5000000,
     'T': 293,
-    'date': 10.4, # this assures the right mole fraction for viscocitiy are calculated
+    'date': 30.5, # this assures the right mole fraction for viscocitiy are calculated
 }
 
 
@@ -37,8 +37,10 @@ class PlotManager:
         self.parameters = parameters
         self.x_values = x_values
         self.std_dev = std_dev
-
-        if len(self.parameters) == 5:
+        
+        if self.parameters is None:
+            self.fittype = None
+        elif len(self.parameters) == 5:
             self.fittype = 'frisken'
         elif len(self.parameters) == 3:
             self.fittype = 'kww'
@@ -239,13 +241,15 @@ class CurveFitting:
         original_amplitude = self.y_values[0]
         cutoff = (original_amplitude / 100) +1
         index = np.where(self.y_values <= cutoff)[0][0] + 1
-        #cutoff_manual = 1000
-        #index_manual = np.where(self.x_values >= cutoff_manual)[0][0]
+
+        #manual cutoff:
+        #cutoff = 10000
+        #index = np.where(self.x_values >= cutoff)[0][0]
 
         if self.model_name == "frisken":
         # add bounds to frisken
-            lower_bounds = [0.97, 0, 0, 0, 0]
-            upper_bounds = [1.03, np.inf, np.inf, np.inf, np.inf]
+            lower_bounds = [0.99, 0, 0, 0, 0]
+            upper_bounds = [1.01, np.inf, np.inf, np.inf, np.inf]
             bounds = (lower_bounds, upper_bounds)
             self.popt, self.pcov = curve_fit(self.func, self.x_values[0:index], self.y_values[0:index],
                                             p0=self.guess, bounds=bounds)
@@ -331,7 +335,7 @@ def single_acf_from_binary(file_path):
 
     sequence = binary_to_arr(file_path)
     #sequence = np.loadtxt(file_path, usecols = [1])
-    acf_binned, bins = autocorrelation_fft(sequence, binning=1.01)
+    acf_binned, bins = autocorrelation_fft(sequence, binning=1.10) # 1.01!!
     
     return acf_binned, bins
 
@@ -357,7 +361,7 @@ def acf_from_binaryfiles(folder_path):
         print(f'cooking {f}:')
 
         sequence = binary_to_arr(file_path)
-        acf_binned, bins = autocorrelation_fft(sequence, binning=1.03)
+        acf_binned, bins = autocorrelation_fft(sequence, binning=1.03) #1.03!!!!
 
 
         stacked = np.column_stack((bins, acf_binned))
@@ -369,38 +373,89 @@ def main_acf(file_path, model):
 
     print('Calculating ACF')
     acf_values, bins = single_acf_from_binary(file_path)
-    print('Plotting Data')
-    fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
-    fit = fitter_bin.get_curve()
-    parameters = fitter_bin.get_params()
-    std_dev = fitter_bin.get_std_error()
-
-    plt = PlotManager(acf_values, fit, parameters, std_dev, bins)
-    plt.set_up()
-    plt.plot_acf(color= config['acf_color'])
-    plt.plot_fit(config['fit_color'])
-    plt.plot_info()
-    plt.show_and_save()
-
-
-
-
-def print_radius(file_path, model, time_step, temp, is_acf = True):
-    if not is_acf:
-        sequence = np.loadtxt(file_path, usecols = [1])
-        acf_values = autocorrelation_fft(sequence)
+    
+    if model is not None:
+        print('Fitting Model:', model)
+        fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
+        fit = fitter_bin.get_curve()
+        parameters = fitter_bin.get_params()
+        std_dev = fitter_bin.get_std_error()
     else:
-        acf_values = np.loadtxt(file_path, usecols = [1])
-    bins = np.loadtxt(file_path, usecols = [0])
+        print('Skipping Fit — Plotting ACF Only')
+        fit = None
+        parameters = None
+        std_dev = None
 
+    plotter = PlotManager(acf_values, fit, parameters, std_dev, bins)
+    plotter.set_up()
+    plotter.plot_acf(color=config['acf_color'])
+
+    if model is not None:
+        plotter.plot_fit(config['fit_color'])
+        plotter.plot_info()
+
+    plotter.show_and_save()
+
+
+
+
+
+# ------------- other stuff ----------
+
+def plot_many_acf():
+    """path_list = ['/home/elias/proj/_photon_correlation/concentration_formation/0.052g/OUT15.DAT',
+                 '/home/elias/proj/_photon_correlation/concentration_formation/0.072g/OUT20.DAT',
+                 '/home/elias/proj/_photon_correlation/concentration_formation/0.108g/OUT20.DAT',
+                 '/home/elias/proj/_photon_correlation/concentration_formation/0.151g/OUT15.DAT',
+                 '/home/elias/proj/_photon_correlation/concentration_formation/0.202g/OUT22.DAT',
+                 '/home/elias/proj/_photon_correlation/concentration_formation/0.312g/OUT25.DAT'
+    ]"""
+
+    path_list = ['/home/elias/proj/_photon_correlation/new_meas/0.076g_may/OUT10.DAT',
+                 '/home/elias/proj/_photon_correlation/new_meas/0.100g_may/OUT15.DAT',
+                 '/home/elias/proj/_photon_correlation/concentration_sonication_formation/0.151/OUT15.DAT',
+                 '/home/elias/proj/_photon_correlation/concentration_sonication_formation/0.297/OUT15.DAT',
+                 ]
+    
+    """path_list = ["/home/elias/proj/_photon_correlation/dif_sonication_low_c/0.074g_8min/OUT15.DAT",
+                 "/home/elias/proj/_photon_correlation/dif_sonication_low_c/0.072g_16min/OUT15.DAT",
+                 "/home/elias/proj/_photon_correlation/dif_sonication_low_c/0.073_32min/OUT15.DAT"]"""
+
+    colors = ['#88CCEE', '#44AA99', '#117733', '#DDCC77', '#EE9966', '#CC6677']
+
+    first_acf, first_bins = single_acf_from_binary(path_list[0])
+    plotter = PlotManager(first_acf, None, None, None, first_bins)
+    plotter.set_up()
+    #plotter.plot_acf(color=colors[0], label_input='concentration_1')
+
+    #thymol_percentages = [0.14, 0.18, 0.27, 0.39, 0.51, 0.81]
+    thymol_percentages = [0.19, 0.26, 0.40, 0.76]
+
+    for conc, path, color in zip(thymol_percentages, path_list[:], colors[:]):
+        print(f'Processing {path}')
+        acf_values, bins = single_acf_from_binary(path)
+        plotter.acf_values = acf_values
+        plotter.x_values = bins
+        plotter.plot_acf(color=color, label_input=f'{round(conc, 2)} wt. %')
+
+    plotter.show_and_save()
+
+
+
+
+def print_radius(file_path, model, time_step, temp, date):
+
+    acf_values, bins = single_acf_from_binary(file_path)
     fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
     fit = fitter_bin.get_curve()
     parameters = fitter_bin.get_params()
     std_dev = fitter_bin.get_std_error()
     tau = fitter_bin.get_tau()
 
-    r = particle_radius(tau * time_step, T=temp)
-    std_dev_r = radius_std(std_dev * time_step, T=temp)
+    visc = vscy.get_viscocity(temp, date)
+
+    r = particle_radius(tau * time_step, T=temp, viscocity=visc)
+    std_dev_r = radius_std(std_dev * time_step, T=temp, viscocity=visc)
 
 
     print(rf'{r} $\pm$ {std_dev_r}')
@@ -408,12 +463,10 @@ def print_radius(file_path, model, time_step, temp, is_acf = True):
 
 
 
-# ------------- other stuff ----------
-
 
 def test_binning(path):
     sequence = np.loadtxt(path, usecols = [1])
-    acf_data, bins = autocorrelation_fft(sequence, binning = 1.03)
+    acf_data, bins = autocorrelation_fft(sequence, binning = 1.01)
     acf_data_unbinned = autocorrelation_fft(sequence)
 
 
@@ -449,6 +502,7 @@ def test_binning(path):
 
 
 if __name__ == "__main__":
-    main_acf(config['file_path'], config['model'])
+    #main_acf(config['file_path'], config['model'])
+    #print_radius(config['file_path'], config['model'], config['real_time'], config['T'], config['date'])
     #viscocity = vscy.get_viscocity(config['T'], config['date'])
-    #print_radius(config['file_path'], config['model'], config['real_time'], config['T'])
+    plot_many_acf()
