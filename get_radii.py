@@ -12,7 +12,7 @@ config = {
     'channels': 5000000,
     'model': 'kww',
     'T': 283,
-    'date':10.6, # this assures the right mole fraction for viscocitiy are calculated
+    'date':30.5, # this assures the right mole fraction for viscocitiy are calculated
     'filter': 1e3
 }
 
@@ -155,7 +155,7 @@ def plot_r(r, std_dev):
 
     ax.plot(
         x_vals, r, 
-        '.', markersize=3, color='cornflowerblue', label='r'  # Label for markers
+        'o', markersize=3, color='cornflowerblue', label='r'  # Label for markers
     )   
 
 
@@ -163,7 +163,7 @@ def plot_r(r, std_dev):
     #        label=rf'$\bar{{r}} = {np.round(mean_r, 8)}$')
 
     ax.set_xlabel('t [h]', fontsize=12)
-    ax.set_ylabel(r'r [$\mathrm{\mu m}$]', fontsize=12)
+    ax.set_ylabel(r'r ($\mathrm{\mu m}$)', fontsize=12)
     ax.grid(True, linestyle=':', linewidth=0.7, alpha=0.6)
     ax.legend(loc='upper right', fontsize=11, frameon=True)
     ax.spines['top'].set_visible(False)
@@ -237,26 +237,26 @@ def main_r(folder_path, time_step = 30e-6, model = 'kww', filter = 1e3):
 
 def walking_avg_r():
 
-    base_path = '/home/elias/proj/_photon_correlation/plot_low_c_T_copy/meas_'
-    temperature = [20, 15, 10]
+    #base_path = '/home/elias/proj/_photon_correlation/plot_low_c_T_copy/meas_'
+    #temperature = [20, 15, 10]
 
 
-    #base_path = '/home/elias/proj/_photon_correlation/for_plot_walk_avg/high_concentration/meas_'
+    base_path = '/home/elias/proj/_photon_correlation/for_plot_walk_avg/high_concentration/meas_'
     # meas_3: 0.19 meas_4: 0.33, meas_5 0.45 wt. % thymol, 
-    #thymol_concentrations = [0.19, 0.33, 0.45]
+    thymol_concentrations = [0.19, 0.33, 0.45]
 
 
-    paths = [f"{base_path}{i}/all_r.txt" for i in range(1, 4)]
+    paths = [f"{base_path}{i}/all_r.txt" for i in range(3, 6)]
     #colors = ['#88CCEE', '#44AA99', '#117733', '#DDCC77', '#EE9966', '#CC6677', '#CC6677']
-    #colors = ['#44AA99','#117733', '#DDCC77']
-    colors = ['#CC6677', '#DDCC77', '#44AA99']
+    colors = ['#44AA99','#117733', '#DDCC77']
+    #colors = ['#CC6677', '#DDCC77', '#44AA99']
     
 
     fig, ax = plt.subplots(figsize=(6, 4))
 
-    for conc, path, col in zip(temperature, paths, colors):
-        r = np.loadtxt(path, usecols=0)*1e6
-        r_dev = np.loadtxt(path, usecols=1)*1e6
+    for conc, path, col in zip(thymol_concentrations, paths, colors):
+        r = np.loadtxt(path, usecols=2) # * 1e6
+        r_dev = np.loadtxt(path, usecols=1) # *1e6
         r = r[20:]
         r_dev = r_dev[20:]
 
@@ -276,13 +276,14 @@ def walking_avg_r():
             # 1. Measurement errors
             # 2. Statistical std
             # Total bin uncertainty (gauß) = sqrt( sum(meas_errors^2) / n^2 + std^2 / n )
-            stat_std = np.std(bin_data, ddof=1)
+            """stat_std = np.std(bin_data, ddof=1)
             meas_var = np.sum(bin_errs**2) / avg_bin**2
             stat_var = stat_std**2 / avg_bin
-            total_std = np.sqrt(meas_var + stat_var)
+            total_std = np.sqrt(meas_var + stat_var)"""
 
-            all_avg_r.append(avg_r)
-            all_std_r.append(total_std)
+            if avg_r < 0.9:
+                all_avg_r.append(avg_r)
+                #all_std_r.append(total_std)
             j += 1
 
         all_avg_r = np.array(all_avg_r)
@@ -290,13 +291,13 @@ def walking_avg_r():
 
         t = get_real_time_axis(config['real_time'], config['channels'], all_avg_r, 'h') * avg_bin
 
-        plt.plot(t, all_avg_r, color=col, label=f'{conc} °C')
-        plt.fill_between(t, all_avg_r - all_std_r, all_avg_r + all_std_r,
-                         color=col, alpha=0.2)
+        plt.plot(t, all_avg_r, color=col, label=f'{conc} wt. %')
+        #plt.fill_between(t, all_avg_r - all_std_r, all_avg_r + all_std_r,
+        #                 color=col, alpha=0.2)
     
 
     ax.set_xlabel('t (h)', fontsize=12)
-    ax.set_ylabel(r'r ($\mathrm{\mu m}$)', fontsize=12)
+    ax.set_ylabel(r'$\alpha$', fontsize=12)
     ax.grid(True, linestyle=':', linewidth=0.7, alpha=0.6)
     ax.legend(loc='upper right', fontsize=11, frameon=True)
     ax.spines['top'].set_visible(False)

@@ -18,7 +18,7 @@ def calculate_mole_fractions(m_ethanol, m_water):
 
 
 
-def jouyban_acree_model(X1, X2, eta_1, eta_2, A0, A1, A2, T): # X: molefraction for each liquid, eta: viscocity, A: parameters from lstsq fit, T: temperature
+def jouyban_acree_model(X1, X2, eta_1, eta_2, A0, A1, A2, T):
     term_1 = X1 * np.log(eta_1)
     term_2 = X2 * np.log(eta_2) 
     term_3 = A0 *(X1*X2 / T)
@@ -27,7 +27,7 @@ def jouyban_acree_model(X1, X2, eta_1, eta_2, A0, A1, A2, T): # X: molefraction 
 
     ln_eta_m = term_1 + term_2 + term_3 + term_4 + term_5
 
-    return ln_eta_m # log of mixture of viscocity
+    return ln_eta_m 
 
 
 
@@ -37,7 +37,7 @@ def jouyban_acree_model(X1, X2, eta_1, eta_2, A0, A1, A2, T): # X: molefraction 
 mass_data = {
     14.3: {"water": 3.785, "ethanol": 0.187},
     15.3: {"water": 3.472, "ethanol": 0.127},
-    20.3: {"water": 3.184, "ethanol": 0.290},
+    20.3: {"water": 3.584, "ethanol": 0.297},
     24.3: {"water": 3.801, "ethanol": 0.197},
     27.3: {"water": 3.801, "ethanol": 0.197},
     3.4: {"water": 3.801, "ethanol": 0.197},
@@ -48,7 +48,7 @@ mass_data = {
     6.5: {"water": 3.620, "ethanol": 0.053},
     14.5: {"water": 3.528, "ethanol": 0.151}, #new concentration highest
     22.5: {"water": 3.528, "ethanol": 0.151},
-    27.5: {"water": 3.496, "ethanol": 0.101}, # new_meas folder from here onward
+    27.5: {"water": 3.496, "ethanol": 0.100}, # new_meas folder from here onward
     28.5: {"water": 3.234, "ethanol": 0.148},
     29.5:  {"water": 3.643, "ethanol": 0.093},
     30.5: {"water": 3.510, "ethanol": 0.076},

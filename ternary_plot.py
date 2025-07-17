@@ -129,6 +129,24 @@ class TernaryPlot:
         x2, y2 = self.ternary_to_cartesian([a], [b*11], [0])
         self.ax.text(x2[0] + 0.001, y2[0] - 0.018, f'{round(a*100, 2)}%', color=col, fontsize = size, rotation = -60)
 
+    def draw_zoom_region(self, a_range, b_range, c_range, padding = 0.01):
+        a_vals = [a_range[0], a_range[1], a_range[1], a_range[0]]
+        b_vals = [b_range[0], b_range[0], b_range[1], b_range[1]]
+        c_vals = [c_range[0], c_range[1], c_range[0], c_range[1]]
+
+        total = np.array(a_vals) + np.array(b_vals) + np.array(c_vals)
+        a_vals = np.array(a_vals) / total
+        b_vals = np.array(b_vals) / total
+        c_vals = np.array(c_vals) / total
+
+        x, y = self.ternary_to_cartesian(a_vals, b_vals, c_vals)
+        col = 'black'
+        line_style = 'dashed'
+
+        self.ax.plot([min(x)- padding, max(x)], [min(y)- padding, min(y) - padding], linestyle = line_style, color=col, linewidth=0.9)
+        self.ax.plot([min(x) - padding, min(x) - padding], [min(y) - padding, max(y) + padding], linestyle=line_style, color=col, linewidth=0.9) 
+        self.ax.plot([min(x) - padding, max(x)], [max(y) + padding, max(y) + padding], linestyle=line_style, color=col, linewidth=0.9) 
+        self.ax.plot([max(x), max(x)], [max(y) + padding, min(y) - padding], linestyle=line_style, color=col, linewidth=0.9) #
 
     def zoom_to_region(self, a_range, b_range, c_range, padding=0.01):
         a_vals = [a_range[0], a_range[1], a_range[1], a_range[0]]
@@ -183,6 +201,12 @@ def plot_1():
         c_range=(0.0, 0.1)    # Ethanol
     )"""
 
+    tern_plot.draw_zoom_region(
+        a_range=(0.85, 1.0),  # Water
+        b_range=(0.0, 0.05),  # Thymol
+        c_range=(0.0, 0.1)    # Ethanol
+    )
+
     tern_plot.add_border_labels()
     tern_plot.showandsave('/home/elias/proj/_photon_correlation/ternary.png')
 
@@ -195,12 +219,18 @@ def plot_2():
     tern_plot = TernaryPlot(grid_intervals=10)
 
     for point, col in zip(points, cols):
-        #tern_plot.plot_points([point], label=f'{np.round(point[1]*100, 2)} wt. %', color=col)
-        tern_plot.plot_points([point], color=col)
+        tern_plot.plot_points([point], label=f'{np.round(point[1]*100, 2)} wt. %', color=col)
+        #tern_plot.plot_points([point], color=col)
         tern_plot.add_component_edge_markers(*point, col)
-        tern_plot.add_component_label(*point, 'test', col)
+        #tern_plot.add_component_label(*point, 'test', col)
 
-    tern_plot.zoom_to_region(
+    """tern_plot.zoom_to_region(
+        a_range=(0.85, 1.0),  # Water
+        b_range=(0.0, 0.05),  # Thymol
+        c_range=(0.0, 0.1)    # Ethanol
+    )"""
+
+    tern_plot.draw_zoom_region(
         a_range=(0.85, 1.0),  # Water
         b_range=(0.0, 0.05),  # Thymol
         c_range=(0.0, 0.1)    # Ethanol
@@ -219,16 +249,17 @@ def plot_3():
     tern_plot = TernaryPlot(grid_intervals=10)
 
     for point, col in zip(points, cols):
-        #tern_plot.plot_points([point], label=f'{np.round(point[1]*100, 2)} wt. %', color=col)
-        tern_plot.plot_points([point], color=col)
+        tern_plot.plot_points([point], label=f'{np.round(point[1]*100, 2)} wt. %', color=col)
+        #tern_plot.plot_points([point], color=col)
         tern_plot.add_component_edge_markers(*point, col)
-        tern_plot.add_component_label(*point, 'test', col)
+        #tern_plot.add_component_label(*point, 'test', col)
 
-    tern_plot.zoom_to_region(
+    tern_plot.draw_zoom_region(
         a_range=(0.85, 1.0),  # Water
         b_range=(0.0, 0.05),  # Thymol
         c_range=(0.0, 0.1)    # Ethanol
     )
-
     tern_plot.add_border_labels()
     tern_plot.showandsave('/home/elias/proj/_photon_correlation/ternary.png')
+
+plot_3()

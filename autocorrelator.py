@@ -8,7 +8,7 @@ import viscocity as vscy
 
 
 config = {
-    'file_path': '/home/elias/proj/_photon_correlation/10C_thym/OUT1000.DAT', # path to acf data
+    'file_path': '/home/elias/proj/_photon_correlation/acf_bin_0.dat', # path to acf data
     'model': 'kww',                 # exp, kww, frisken or None for no fit
     'acf_color': 'cornflowerblue',  # matplot colors
     'fit_color': 'dimgray',
@@ -18,10 +18,8 @@ config = {
     'real_time': 30e-6,
     'channels': 5000000,
     'T': 293,
-    'date': 30.5, # this assures the right mole fraction for viscocitiy are calculated
+    'date': 20.3, # this assures the right mole fraction for viscocitiy are calculated
 }
-
-
 
 
 
@@ -71,6 +69,8 @@ class PlotManager:
         else: 
             self.ax.plot(self.x_values, self.acf_values, marker='o', linestyle='', markersize=3, 
                      markerfacecolor='none', markeredgecolor=color, label=label_input)
+        
+        self.ax.plot(0, linestyle = ':', linewidth = 0.7, alpha = 0.7, label = 'Residuals', color = 'blue')
 
 
     def plot_fit(self, color = 'orange'):
@@ -96,6 +96,15 @@ class PlotManager:
             gamma_bar_fit = self.parameters[2]
             K2_fit = self.parameters[3]
             self.ax.plot([], marker='', linestyle='',markerfacecolor='none' , label=fr"$\tau = \frac{{1}}{{\bar \Gamma}} = {np.round(1/gamma_bar_fit, 3)}$, $\gamma = \frac{{K_2}}{{\bar \Gamma^2}} = {np.round(K2_fit / gamma_bar_fit**2, 5)}$", markeredgecolor = 'gray')
+    
+    def plot_residuals(self, x_res, y_res):
+        self.ax2 = self.ax.twinx()
+        self.ax2.set_ylabel(r'$\varepsilon$', fontsize=12)
+        self.ax2.set_ylim(-0.04, 0.04)
+        self.ax2.spines['top'].set_visible(False)
+        self.ax2.tick_params(axis='both', labelsize=7)
+
+        self.ax2.plot(x_res, y_res, linestyle = ':', linewidth = 0.7, alpha = 0.7)
 
 
     def show_and_save(self, save_path = "/home/elias/proj/_photon_correlation/plot.png"):
@@ -136,10 +145,10 @@ def autocorrelation(sequence):
     g2_values = []
 
     for t in range(N-1):  
-        # ⟨I(t), I(t + t')⟩
+        # ⟨I(t), <I(t + t')>
         correlation = np.mean(sequence[:N-t] * sequence[t:])
 
-        # g^(2) = ⟨I(t), I(t + t')⟩ / ⟨I(t), I(t + 0)⟩
+        # g^(2) = <I(t), I(t + t')> / <I(t)>^2
         g2 = correlation / normalization
         g2_values.append(g2)
 
@@ -154,7 +163,7 @@ def autocorrelation_fft(sequence, binning = None):
     pad = 2*N #add 0 to avoid convolution artifacts as explained by mr. Sepiol ;)
     sequence_fft = np.fft.fft(sequence, pad) #note first N will be sequence, 2nd N will be zeros!
 
-    psd = sequence_fft * np.conjugate(sequence_fft) #power spectrum
+    psd = sequence_fft * np.conjugate(sequence_fft) 
 
     correlation_padded = 1/N * np.real(np.fft.ifft(psd)) # inverse fourer and take real 
 
@@ -252,7 +261,7 @@ class CurveFitting:
             upper_bounds = [1.01, np.inf, np.inf, np.inf, np.inf]
             bounds = (lower_bounds, upper_bounds)
             self.popt, self.pcov = curve_fit(self.func, self.x_values[0:index], self.y_values[0:index],
-                                            p0=self.guess, bounds=bounds)
+                                            p0=self.guess)
         else:
             self.popt, self.pcov = curve_fit(self.func, self.x_values[0:index], self.y_values[0:index],
                                             p0=self.guess)
@@ -294,6 +303,19 @@ class CurveFitting:
         
         if self.model_name == 'frisken':
             return 1/self.popt[2]
+        
+    def get_residuals(self):
+        if self.popt is None:
+            raise ValueError("Fit the curve first using make_fit().")
+        
+        cutoff = (self.y_values[0] / 100) + 1
+        index = np.where(self.y_values <= cutoff)[0][0] + 1
+        
+        x_residuals = self.x_values[:index]  # <-- REAL time axis
+        y_pred = self.func(x_residuals, *self.popt)
+        residuals = self.y_values[:index] - y_pred
+    
+        return x_residuals, residuals
     
 
 
@@ -498,6 +520,59 @@ def test_binning(path):
     print('w binning:', params[1], rf'$\pm$', std_error, 'no binning:', param_no_bin[1], rf'$\pm$', std_error_no_bin)
 
 
+def plot_different_fits(file_path, model_list):
+    print('Calculating ACF')
+    #acf_values, bins = single_acf_from_binary(file_path)
+    acf_values, bins = np.loadtxt(file_path, usecols= 1), np.loadtxt(file_path, usecols= 0)
+    # Initialize plotter only once
+    plotter = None
+
+    for i, model in enumerate(model_list):
+        print('Fitting Model:', model)
+        fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
+        fit = fitter_bin.get_curve()
+        parameters = fitter_bin.get_params()
+        std_dev = fitter_bin.get_std_error()
+
+        # Set up plotter on first iteration
+        if i == 0:
+            plotter = PlotManager(acf_values, fit, parameters, std_dev, bins)
+            plotter.set_up()
+            plotter.plot_acf(label_input="ACF Data", color='darkgray')  # Plot raw ACF once
+
+        # Update PlotManager with new fit info (temporarily)
+        plotter.fit = fit
+        plotter.parameters = parameters
+        plotter.std_dev = std_dev
+        plotter.fittype = model
+
+        plot_colors = ['#555555', 'gold', '#729ECE']
+
+        plotter.plot_fit(color=plot_colors[i])
+
+    plotter.show_and_save()
+    
+
+def plot_residuals(file_path, model):
+
+    acf_values, bins = np.loadtxt(file_path, usecols= 1), np.loadtxt(file_path, usecols= 0)
+    
+    print('Fitting Model:', model)
+    fitter_bin = CurveFitting(model, acf_values, bins).make_fit()
+    fit = fitter_bin.get_curve()
+    parameters = fitter_bin.get_params()
+    std_dev = fitter_bin.get_std_error()
+    resx, resy = fitter_bin.get_residuals()
+
+    plotter = PlotManager(acf_values, fit, parameters, std_dev, x_values = bins)
+    plotter.set_up()
+    plotter.plot_acf(color=config['acf_color'])
+    plotter.plot_fit(config['fit_color'])
+    plotter.plot_info()
+    plotter.plot_residuals(resx, resy)
+
+    plotter.show_and_save()
+
 
 
 
@@ -505,4 +580,6 @@ if __name__ == "__main__":
     #main_acf(config['file_path'], config['model'])
     #print_radius(config['file_path'], config['model'], config['real_time'], config['T'], config['date'])
     #viscocity = vscy.get_viscocity(config['T'], config['date'])
-    plot_many_acf()
+    #plot_many_acf()
+    #plot_different_fits(config['file_path'], ['exp', 'kww', 'frisken'])
+    plot_residuals(config['file_path'], 'frisken')

@@ -5,7 +5,7 @@ from scipy.optimize import curve_fit
 from get_radii import get_real_time_axis
 
 config = {
-    'file_path': '/home/elias/proj/_photon_correlation/final_temp_30/all_r.txt',
+    'file_path': '/home/elias/proj/_photon_correlation/plot_low_c_T_copy/meas_2/all_r.txt',
     'real_time': 30e-6,
     'channels': 5000000,
 }
@@ -28,8 +28,8 @@ def load_and_log(file_path):
 
 
 def plot_setup(ax):
-    ax.set_xlabel('ln(t) [s]', fontsize=12)
-    ax.set_ylabel(r'ln(r) [$\mathrm{\mu m}$]', fontsize=12)
+    ax.set_xlabel('ln t ln(s)', fontsize=12)
+    ax.set_ylabel(r'ln r ln($\mathrm{\mu m}$)', fontsize=12)
     ax.grid(True, linestyle=':', linewidth=0.7, alpha=0.6)
     ax.legend(loc='upper right', fontsize=11, frameon=True)
     ax.spines['top'].set_visible(False)
@@ -70,9 +70,9 @@ def plot_ln(file_path):
 def fit_log_data(file_path):
 
     ln_r, ln_t, ln_dev = load_and_log(file_path)
-    plot_ln(file_path)
-    t_1 = float(input('t_1 for lienar fit:'))
-    t_2 = float(input('t_2 for linear fit:'))
+    #plot_ln(file_path)
+    t_1 = ln_t[0] #float(input('t_1 for lienar fit:'))
+    t_2 = ln_t[-1] #(input('t_2 for linear fit:'))
 
     
 
@@ -111,7 +111,37 @@ def main(file_path):
 
 
 
+def multi_plot(file_paths, labels=None, colors=None):
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    if labels is None:
+        labels = [20, 15, 10]
+    if colors is None:
+        colors = ['#CC6677', '#DDCC77', '#44AA99']
+
+    for i, file_path in enumerate(file_paths):
+        ln_r, ln_t, ln_dev = load_and_log(file_path)
+        t_linear, fit, k_dev, k = fit_log_data(file_path)
+
+        ax.plot(ln_t, ln_r, '.', markersize=3, color=colors[i], label= f'{labels[i]} °C')
+        if i <= 1:
+            ax.plot(t_linear, fit, color=colors[i], alpha=0.7, linestyle='--',
+                    label=rf'$k = {k:.5f} \pm {k_dev:.5f}$')
+        else:
+            ax.plot(t_linear, fit, color=colors[i], alpha=0.7, linestyle='--',
+                    label=rf'$k = {k:.4f} \pm {k_dev:.4f}$')
+
+    plot_setup(ax)
+    ax.legend(loc='upper left', fontsize=11, frameon=True)
+    plt.tight_layout()
+    plt.savefig('/home/elias/proj/_photon_correlation/loglogplot.png', dpi=300)
+    plt.show()
 
 
 if __name__ == "__main__":
-    main(config['file_path'])
+    file_paths = [
+        '/home/elias/proj/_photon_correlation/plot_low_c_T_copy/meas_1/all_r.txt',
+        '/home/elias/proj/_photon_correlation/plot_low_c_T_copy/meas_2/all_r.txt',
+        '/home/elias/proj/_photon_correlation/plot_low_c_T_copy/meas_3/all_r.txt'
+    ]
+    multi_plot(file_paths)
