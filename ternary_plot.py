@@ -73,7 +73,6 @@ class TernaryPlot:
             self.ax.legend()
 
     def _draw_rotated_marker(self, x, y, angle_deg, size, **kwargs):
-        import numpy as np
         angle_rad = np.deg2rad(angle_deg)
         dx = (size / 2) * np.cos(angle_rad)
         dy = (size / 2) * np.sin(angle_rad)
